@@ -1,4 +1,5 @@
 (ns snoopy.core
+  (:require [clojure.string :as str])
   (:gen-class))
 
 ;; Idea
@@ -27,14 +28,36 @@
 
 (def commands (atom {}))
 
-(defn lockdown-str-prefix
-  "Lockdown a str-prefix envolving it with `^` and `$` to generate a
-  strict regex to prevent collisions."
-  [str-prefix]
-  (let [re-str (str str-prefix)]
-    (str "^" re-str "$")))
-
 (defn add-cmd!
   "Store a new command str-prefix and handler."
   [str-prefix handler]
-  (swap! commands conj {(lockdown-str-prefix str-prefix) handler}))
+  (swap! commands conj {str-prefix handler}))
+
+(defn cmd-lookup [str-cmd]
+  ;; TODO: Strict lookup. Given the command foo:
+  ;;       - `!foo` is a valid string
+  ;;       - `!foo bar` is invalid
+  (let [str-prefix (str/replace str-cmd #"^!" "")]
+    (get @commands str-prefix)))
+
+(defn str-cmd?
+  "Return true if a string starts with a bang, which indicates it's a
+  command instruction."
+  [s]
+  ;; TODO: We need to optmize the regex since it will be applied on
+  ;;       all Slack incoming messages (suggestion: use char at 0)
+  (boolean (re-matches #"^!.*" s)))
+
+(defrecord ParsedCommand [raw-str handler])
+
+(defn cmd-parse
+  "Parse a command string into a ParsedCommand, otherwise return nil."
+  [s]
+  (let [cmd-handler (cmd-lookup s)]
+    (when (and (str-cmd? s) cmd-handler)
+      (->ParsedCommand s cmd-handler))))
+
+(defn cmd-resolve
+  "Evaluate the result of a ParsedCommand."
+  [^ParsedCommand parsed-cmd]
+  ((:handler parsed-cmd)))
