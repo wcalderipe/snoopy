@@ -15,6 +15,8 @@
 ;; - Evaluate and get the result of the command
 ;; - Send the result to the same channel
 
+(def conn (atom nil))
+
 (defn build-incoming-message-channel []
   (let [ch (chan)]
     (go-loop []
@@ -27,11 +29,8 @@
         (recur)))
     ch))
 
-(def conn (atom nil))
-
 (defn start [token]
-  (bot/add-cmd! "ping" (fn [] "pong!"))
-
+  (bot/cmd-load-all!)
   (let [c           (slack/start! token)
         publication (:publication c)]
     (reset! conn c)

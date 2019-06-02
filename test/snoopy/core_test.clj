@@ -4,7 +4,8 @@
                                  add-cmd!
                                  commands
                                  cmd-parse
-                                 cmd-resolve]]))
+                                 cmd-resolve
+                                 cmd-classpaths]]))
 
 (defn foo-cmd []
   "I am foo!")
@@ -33,3 +34,8 @@
 
 (deftest cmd-resolve-test
   (is (= "I am foo!" (cmd-resolve (->ParsedCommand "!foo" foo-cmd)))))
+
+(deftest cmd-classpaths-test
+  (testing "only include commands"
+    (doseq [cmd-cp (cmd-classpaths)]
+      (is (= true (clojure.string/starts-with? cmd-cp "command/"))))))

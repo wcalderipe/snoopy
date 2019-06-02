@@ -61,3 +61,26 @@
   "Evaluate the result of a ParsedCommand."
   [^ParsedCommand parsed-cmd]
   ((:handler parsed-cmd)))
+
+(defn ns-sym->classpath [ns-sym]
+  (-> ns-sym
+      name
+      (.replace "snoopy." "")
+      (.replace "." "/")))
+
+(defn cmd-classpaths
+  "Return all commands classpaths in resources."
+  []
+  (->> (all-ns)
+       (map ns-name)
+       (filter #(str/starts-with? % "snoopy.command"))
+       (map ns-sym->classpath)))
+
+(defn cmd-load-all!
+  "Dynamically load all commands inside the directory `command/` in
+  order to invoke the fn cmd-add! which is placed individually in the
+  bottom of each command namespace."
+  []
+  (doseq [cmd-cp (cmd-classpaths)]
+    (println "Loading" cmd-cp)
+    (load cmd-cp)))
