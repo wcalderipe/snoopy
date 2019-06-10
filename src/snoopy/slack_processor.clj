@@ -3,39 +3,52 @@
             [snoopy.core :as bot]
             [snoopy.slack :as slack]))
 
-;; Slack Processor Component
-;;
-;; This component purpose is establish a connection with Slack RTM API
-;; and process all incoming messages. It will be guided by the
-;; following rules:
-;;
-;; - If the incoming message is a command (starts with a bang and is
-;;   valid command)
-;; - Parse the message
-;; - Evaluate and get the result of the command
-;; - Send the result to the same channel
+(defonce conn (atom nil))
 
-(def conn (atom nil))
+(defn ping-handler [_] "pong!")
 
-(defn build-incoming-message-channel []
+(def commands (bot/commands
+               (bot/make-command "!ping" ping-handler)))
+
+(defn wrap-output-channel
+  "Add to the reply map the proper Slack channel."
+  [handler]
+  (fn [message]
+    (when-let [reply (handler message)]
+      (assoc reply :output-channel-id (:input-channel-id message)))))
+
+(def bot-handler (-> commands
+                     (wrap-output-channel)))
+
+(defn event->message
+  "Maps a Slack event into a message, also enhance it with the
+  channel."
+  [e]
+  {:body             (:text e)
+   :input-channel-id (:channel e)})
+
+(defn reply->event
+  "Maps a reply to a valid Slack event."
+  [r]
+  {:type    :message
+   :channel (:output-channel-id r)
+   :text    (:body r)})
+
+(defn build-incoming-event-channel []
   (let [ch (chan)]
     (go-loop []
-      (when-let [message (<! ch)]
-        (when-let [parsed-cmd (bot/cmd-parse (:text message))]
-          (println "***" (bot/cmd-resolve parsed-cmd))
-          (slack/pub-event (:outcoming-ch @conn) {:type :message
-                                                  :channel (:channel message)
-                                                  :text (bot/cmd-resolve parsed-cmd)}))
+      (when-let [event (<! ch)]
+        (when-let [reply (bot-handler (event->message event))]
+          (slack/pub-event (:outcoming-ch @conn) (reply->event reply)))
         (recur)))
     ch))
 
-(defn start [token]
-  (bot/cmd-load-all!)
+(defn start! [token]
   (let [c           (slack/start! token)
         publication (:publication c)]
     (reset! conn c)
-    (slack/sub-to-event publication "message" (build-incoming-message-channel))))
+    (slack/sub-to-event publication "message" (build-incoming-event-channel))))
 
-(defn stop []
-  (slack/close-connection @conn)
+(defn stop! []
+  (slack/close-connection! @conn)
   (reset! conn nil))

@@ -4,7 +4,7 @@
             [gniazdo.core :as ws]
             [cheshire.core :as json]))
 
-;; Stablish a connectin with Slack RTM via WebSocket, messages will have
+;; Stablish a connectin with Slack RTM via WebSocket, events will have
 ;; two directions incoming and outcoming which will be handled internally
 ;; by channels.
 ;;
@@ -24,18 +24,18 @@
 
 (defn- receive-handler
   [incoming-ch]
-  (fn [raw-message]
-    (let [message (json/parse-string raw-message true)]
-      (println "incoming event:" message)
-      (when-not (contains? excluded-event-types (:type message))
-        (go (>! incoming-ch message))))))
+  (fn [event-json]
+    (let [event (json/parse-string event-json true)]
+      #_(println "[INFO] Incoming Slack event:" event)
+      (when-not (contains? excluded-event-types (:type event))
+        (go (>! incoming-ch event))))))
 
 (defn- build-outcoming-channel
   [socket]
   (let [ch (chan)]
     (go-loop []
       (when-let [event (<! ch)]
-        (println "outcoming event:" event)
+        #_(println "[INFO] Outcoming Slack event:" event)
         (ws/send-msg socket (json/generate-string event))
         (recur)))
     ch))
@@ -65,7 +65,7 @@
   [outcoming-ch event]
   (go (>! outcoming-ch event)))
 
-(defn close-connection
+(defn close-connection!
   [conn]
   (close! (:incoming-ch conn))
   (close! (:outcoming-ch conn))
@@ -85,7 +85,7 @@
       ch))
 
   (def conn (start! token))
-  (close-connection conn)
+  (close-connection! conn)
 
   (sub-to-event (:publication conn) "message" (build-print-channel "message"))
   (sub-to-event (:publication conn) "pong" (build-print-channel "ping-pong"))

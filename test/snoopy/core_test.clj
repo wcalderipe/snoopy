@@ -1,41 +1,22 @@
 (ns snoopy.core-test
   (:require [clojure.test :refer :all]
-            [snoopy.core :refer [->ParsedCommand
-                                 add-cmd!
-                                 commands
-                                 cmd-parse
-                                 cmd-resolve
-                                 cmd-classpaths]]))
+            [snoopy.core :as bot]))
 
-(defn foo-cmd []
-  "I am foo!")
+(deftest render-test
+  (testing "with nil"
+    (is (nil? (bot/render nil))))
 
-(defn reset []
-  (reset! commands {}))
+  (testing "with string"
+    (is (= (bot/render "foo") {:body "foo"})))
 
-(deftest add-cmd!-test
-  (reset)
-  (add-cmd! "foo" foo-cmd)
+  (testing "with map"
+    (is (= (bot/render {:body "I'm foo!"}) {:body "I'm foo!"}))))
 
-  (is (not (nil? (get @commands "foo")))))
+(deftest commands-test
+  (let [combined-handler (bot/commands (bot/make-command "!foo" (fn [_] "foo"))
+                                       (bot/make-command "!bar" (fn [_] "bar")))]
 
-(deftest cmd-parse-test
-  (reset)
-  (add-cmd! "foo" foo-cmd)
-
-  (testing "returns nil if the given string doesn't start with a bang"
-    (is (nil? (cmd-parse "I am not a command!"))))
-
-  (testing "returns nil if command is not found"
-    (is (nil? (cmd-parse "!not-me"))))
-
-  (testing "returns a parsed command"
-    (is (instance? snoopy.core.ParsedCommand (cmd-parse "!foo")))))
-
-(deftest cmd-resolve-test
-  (is (= "I am foo!" (cmd-resolve (->ParsedCommand "!foo" foo-cmd)))))
-
-(deftest cmd-classpaths-test
-  (testing "only include commands"
-    (doseq [cmd-cp (cmd-classpaths)]
-      (is (= true (clojure.string/starts-with? cmd-cp "command/"))))))
+    (testing "matches the proper handler to the given message"
+      (is (= (combined-handler {:body "!foo"}) {:body "foo"}))
+      (is (= (combined-handler {:body "!bar"}) {:body "bar"}))
+      (is (= (combined-handler {:body "i don't have a match :("}) nil)))))
