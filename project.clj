@@ -3,7 +3,10 @@
                  [org.clojure/core.async "0.4.490"]
                  [clj-http "3.9.1"]
                  [cheshire "5.8.1"]
-                 [stylefruits/gniazdo "1.1.1"]]
+                 [stylefruits/gniazdo "1.1.1"]
+
+                 ;; TODO: Move to dev dependencies
+                 [clj-http-fake "1.0.3"]]
   :main ^:skip-aot snoopy.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})

@@ -1,7 +1,7 @@
 (ns snoopy.slack-processor
   (:require [clojure.core.async :refer [>! <! chan go go-loop]]
             [snoopy.core :as bot]
-            [snoopy.slack :as slack]))
+            [snoopy.slack-rtm :as slack-rtm]))
 
 (defonce conn (atom nil))
 
@@ -39,16 +39,16 @@
     (go-loop []
       (when-let [event (<! ch)]
         (when-let [reply (bot-handler (event->message event))]
-          (slack/pub-event (:outcoming-ch @conn) (reply->event reply)))
+          (slack-rtm/publish (:outgoing-ch @conn) (reply->event reply)))
         (recur)))
     ch))
 
 (defn start! [token]
-  (let [c           (slack/start! token)
+  (let [c           (slack-rtm/connect! token)
         publication (:publication c)]
     (reset! conn c)
-    (slack/sub-to-event publication "message" (build-incoming-event-channel))))
+    (slack-rtm/subscribe publication :message (build-incoming-event-channel))))
 
 (defn stop! []
-  (slack/close-connection! @conn)
+  (slack-rtm/disconnect! @conn)
   (reset! conn nil))
