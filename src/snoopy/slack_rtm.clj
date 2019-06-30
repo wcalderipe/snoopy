@@ -32,7 +32,7 @@
     (let [event (update (msg->event msg) :type keyword)]
       (when-not (contains? excluded-event-types (:type event))
         #_(println "[INFO] Incoming event:" event)
-        (go (> incoming-ch event))))))
+        (go (>! incoming-ch event))))))
 
 (defn ws-connect
   "Establish a socket connection with the given URL and publish all
